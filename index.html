@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>University Support Chatbot</title>
+    <style>
+      /* === CSS RESET AND BASE STYLES === */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        font-family: Arial, Helvetica, sans-serif;
+        /* background-color: #f5f5f5; */
+      }
+
+      /* === CHAT LAUNCHER (CLOSED STATE) === */
+      #chatLauncher {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+      }
+
+      #openChat {
+        background: #003366;
+        color: white;
+        border: 2px solid #ffffff;
+        border-radius: 50px;
+        padding: 12px 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+      }
+
+      #openChat:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+      }
+
+      #statusIndicator {
+        color: #28a745;
+        font-size: 8px;
+        margin-left: 4px;
+      }
+
+      /* === MAIN CHAT CONTAINER === */
+      #chatContainer {
+        position: fixed;
+        bottom: 100px;
+        right: 20px;
+        width: 420px;
+        height: 650px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        z-index: 1001;
+        overflow: hidden;
+      }
+
+      /* === HEADER STYLES === */
+      #chatHeader {
+        background: linear-gradient(135deg, #003366, #004488);
+        color: white;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #headerInfo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      #botAvatar {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+
+      #headerText h1 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+
+      #headerText p {
+        font-size: 12px;
+        opacity: 0.9;
+      }
+
+      #headerActions {
+        display: flex;
+        gap: 8px;
+      }
+
+      #headerActions button {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+      }
+
+      #headerActions button:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      /* === MAIN CHAT AREA === */
+      #chatMain {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+      }
+
+      .message {
+        display: flex;
+        margin-bottom: 16px;
+        animation: messageSlideIn 0.3s ease-out;
+      }
+
+      @keyframes messageSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .bot-message {
+        align-items: flex-start;
+      }
+
+      .user-message {
+        justify-content: flex-end;
+      }
+
+      .message-avatar {
+        width: 32px;
+        height: 32px;
+        background: #e9ecef;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        margin-right: 8px;
+        flex-shrink: 0;
+      }
+
+      .user-message .message-avatar {
+        display: none;
+      }
+
+      .message-content {
+        max-width: 85%;
+      }
+
+      .message-bubble {
+        padding: 12px 16px;
+        border-radius: 18px;
+        margin-bottom: 4px;
+      }
+
+      .bot-message .message-bubble {
+        background: white;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      .user-message .message-bubble {
+        background: #003366;
+        color: white;
+        border-bottom-right-radius: 4px;
+      }
+
+      .message-time {
+        font-size: 11px;
+        color: #6c757d;
+        padding: 0 8px;
+      }
+
+      .user-message .message-time {
+        text-align: right;
+      }
+
+      /* === QUICK ACTIONS === */
+      .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0;
+      }
+
+      .quick-action {
+        background: #003366;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 16px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .quick-action:hover {
+        background: #002244;
+      }
+
+      /* === STRUCTURED CONTENT === */
+      .structured-content {
+        margin: 12px 0;
+      }
+
+      .steps-list {
+        margin: 12px 0;
+        padding-left: 20px;
+      }
+
+      .step-item {
+        margin-bottom: 8px;
+        line-height: 1.4;
+      }
+
+      .resource-links {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #e9ecef;
+      }
+
+      .resource-links h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+        color: #495057;
+      }
+
+      .links-list {
+        list-style: none;
+      }
+
+      .links-list li {
+        margin-bottom: 6px;
+      }
+
+      .resource-link {
+        color: #003366;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        transition: color 0.2s;
+      }
+
+      .resource-link:hover {
+        color: #002244;
+        text-decoration: underline;
+      }
+
+      /* === TYPING INDICATOR === */
+      #typingIndicator {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 16px;
+      }
+
+      .typing-dots {
+        display: flex;
+        gap: 4px;
+      }
+
+      .typing-dots span {
+        width: 6px;
+        height: 6px;
+        background: #6c757d;
+        border-radius: 50%;
+        animation: typingPulse 1.4s ease-in-out infinite both;
+      }
+
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typingPulse {
+        0%,
+        80%,
+        100% {
+          transform: scale(0.8);
+          opacity: 0.5;
+        }
+        40% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      /* === SUGGESTIONS BAR === */
+      #suggestionsBar {
+        padding: 12px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .suggestions-label {
+        font-size: 12px;
+        color: #6c757d;
+        margin-right: 4px;
+      }
+
+      .suggestion-chip {
+        background: white;
+        border: 1px solid #dee2e6;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .suggestion-chip:hover {
+        background: #003366;
+        color: white;
+        border-color: #003366;
+      }
+
+      /* === INPUT AREA === */
+      #inputContainer {
+        display: flex;
+        align-items: center;
+        padding: 16px 20px;
+        background: white;
+        border-top: 1px solid #e9ecef;
+        gap: 8px;
+      }
+
+      #inputActions {
+        display: flex;
+        gap: 4px;
+      }
+
+      #inputActions button {
+        background: none;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+
+      #inputActions button:hover {
+        background: #f8f9fa;
+      }
+
+      #messageInput {
+        flex: 1;
+        border: 1px solid #dee2e6;
+        border-radius: 20px;
+        padding: 12px 16px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      #messageInput:focus {
+        border-color: #003366;
+        box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.1);
+      }
+
+      #sendButton {
+        background: #003366;
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+      }
+
+      #sendButton:hover {
+        background: #002244;
+      }
+
+      /* === FOOTER INFORMATION === */
+      #footerInfo {
+        padding: 12px 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .privacy-notice {
+        font-size: 11px;
+        color: #6c757d;
+        margin: 0;
+      }
+
+      .text-button {
+        background: none;
+        border: none;
+        color: #003366;
+        font-size: 11px;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+
+      .text-button:hover {
+        color: #002244;
+      }
+
+      /* === ERROR AND SYSTEM MESSAGES === */
+      .system-message {
+        justify-content: center;
+      }
+
+      .system-message .message-content {
+        max-width: 90%;
+        text-align: center;
+      }
+
+      .error-bubble {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .error-icon {
+        font-size: 20px;
+        margin-bottom: 8px;
+        display: block;
+      }
+
+      .error-bubble h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+
+      .error-bubble p {
+        font-size: 13px;
+        margin-bottom: 12px;
+      }
+
+      .retry-button {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .retry-button:hover {
+        background: #c82333;
+      }
+
+      /* === LOADING SKELETON === */
+      .loading-skeleton {
+        width: 100%;
+      }
+
+      .skeleton-line {
+        background: linear-gradient(
+          90deg,
+          #f0f0f0 25%,
+          #e0e0e0 50%,
+          #f0f0f0 75%
+        );
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+
+      .skeleton-line.short {
+        width: 60%;
+        height: 12px;
+      }
+
+      .skeleton-line.medium {
+        width: 80%;
+        height: 12px;
+      }
+
+      .skeleton-line.long {
+        width: 95%;
+        height: 12px;
+      }
+
+      @keyframes loading {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+      /*NAV DESIGN*/
+      nav{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1vh 1vw;
+      }
+      nav ul{
+        display: flex;
+        flex-direction: row;
+        justify-content:space-between;
+        list-style: none;
+      }
+      nav ul li{
+        margin-right: 1vw;
+      }
+      /*HEADER SECTION*/
+      .header-section .banner-image img{
+        width: 100%
+      }
+      .banner-image img{
+        max-height: 100vh;
+        position: relative;
+        text-align: center;
+      }
+      .banner-txt{
+        position: absolute;
+        top: 35%;
+        bottom: 35%;
+        left: 5%;
+        width: 90vw;
+        color: white;
+        font-size: 20px;
+        background-color: rgba(12, 12, 12, 0.301);
+        padding: 2vh 5vw;
+        line-height: 1.5rem;
+      }
+      .banner-txt h1{
+        margin: 2vh 0;
+      }
+      .info{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+      }
+      .info .text{
+        padding: 3vh 2vw;
+        background-color: rgba(128, 128, 128, 0.527);
+        margin: 2vh 2vw;
+        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+        border-radius: 5px;
+        line-height: 1.5rem;
+      }
+      .info .text h2{
+        padding: 2vh 0;
+      }
+      /* .info-intro{
+
+      } */
+      .intro p{
+        line-height: 1.5rem;
+      }
+      .intro,.info-intro{
+        margin: 3vh 3vw
+      }
+      .intro h3,.info-intro h3{
+        text-align: center;
+        margin: 5vh 1vw;
+        font-weight: 900;
+        font-size: 28px;
+      }
+      .image img{
+        max-width: 100%;
+        margin-top: 5vh;
+      }
+      /*FOOTER*/
+      .footer{
+        background-color: rgb(153, 147, 147);
+        text-align: center;
+        color: black;
+        padding: 5vh 5vw;
+        max-height: 100%;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+      }
+      .footer ul{
+        list-style: none;
+      }
+      .footer li a{
+        text-decoration: none;
+      }
+      .footer ul li {
+        text-decoration: none;
+        margin-top: 5vh;
+      }
+      /* === RESPONSIVE DESIGN === */
+      @media (max-width: 768px) {
+        #chatContainer {
+          width: 100vw;
+          height: 100vh;
+          bottom: 0;
+          right: 0;
+          border-radius: 0;
+        }
+
+        #chatLauncher {
+          bottom: 20px;
+          right: 20px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        #chatMain {
+          padding: 16px;
+        }
+
+        #inputContainer {
+          padding: 12px 16px;
+        }
+
+        #suggestionsBar {
+          padding: 8px 16px;
+        }
+
+        .message-content {
+          max-width: 90%;
+        }
+      }
+
+      /* === ACCESSIBILITY === */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Demo Content to Show Chat in Context -->
+    <div style="padding: 10px; margin: 0 auto;">
+        <!-- <h1>Welcome </h1> -->
+        <div class="header-section">
+            <nav>
+            <h1>Chat Support</h1>
+            <ul class="navlist">
+                <!-- <li>Home</li>
+                <li>About</li>
+                <li>Contact Us</li> -->
+            </ul>
+        </nav>
+        <section class="banner-image">
+            <img src="images/munbackground4_50305624966_o.jpg" alt="munBackground">
+            <div class="banner-txt">
+                <h1>Support When You Need It</h1>
+                <br />
+                <p>Get Instant Answes to your Financial Questions. <br />
+                  This AI Support Assistant helps you find accurate information on tuition, funding, and payments,
+                  anytime, anywhere.
+                </p> <br />
+                <p style="font-style: italic;">Built for students by students</p>
+            </div>
+        </section>
+        <section class="intro">
+            <h3>About</h3>
+            <p>Managing university finances can be stressful especially when you need quick answers about tuition fees, scholarships, or payment 
+              deadlines. Memorial University's AI Financial Support Chatbot is here to help.
+              Available 24/7, this intelligent assistant provides instant, accurate responses to your financial questions by retrieving verified 
+              information from Memorial's official systems and documents. And if your question requires more personalized help, the chatbot can seamlessly 
+              connect you to a human advisor for further assistance. Whether you're checking tuition dates, exploring funding options, 
+              or learning about payment methods, our AI Chatbot delivers the support you need without struggles or excessive wait.
+            </p>
+        </section>
+        <section class="info-intro">
+            <h3>Services</h3>
+            <div class="info">
+              <div class="info-finance text">
+                <h2>Instant Access to Finance Information</h2>
+                <p>Get quick answers to your financial questions anytime, anywhere. Whether it's tuition fees, 
+                  payment methods, scholarship details, or funding deadlines, the chatbot provides accurate, 
+                  verified information in seconds — no more waiting for office hours or email replies.
+                </p>
+              </div>
+              <div class="escalation text">
+                <h2>Human Support Escalation</h2>
+                 <p>If your question requires special attention or goes beyond the chatbot's scope, 
+                  it can seamlessly hand over the conversation to a human financial advisor. This ensures you 
+                  always receive the right guidance — from instant answers to personalized support.
+                </p>
+              </div>
+              <div class="accuracy text">
+                <h2>Up to data Information</h2>
+                <p>All responses are drawn from the school's official resources and it is updated regularly to 
+                  ensure accuracy. You can trust that every answer is reliable, current, and aligned with the 
+                  university's financial policies.
+                </p>
+              </div>
+            </div>
+        </section>
+        <section class="image">
+          <img src="images/munbackground1_50304939198_o.jpg" alt="">
+          <img src="images/munbackground_shc2_50405629352_o.jpg" alt="">
+          <img src="images/munbackground_mi_50405478226_o.jpg" alt="">
+        </section>
+        
+        <!-- <div style="height: 1000px;"></div> -->
+        </div>
+    </div>
+
+    <!-- Closed State Chat Launcher -->
+    <div id="chatLauncher">
+        <button id="openChat" aria-label="Open UniAssist Chat">
+            <span>🎓</span>
+            <span>Chat Support</span>
+            <span id="statusIndicator">●</span>
+        </button>
+    </div>
+  </body>
+  <footer class="footer">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
+      <!-- Logo or Brand -->
+      <h2 class="text-lg font-semibold text-white">YourBrand</h2>
+      
+      <!-- Copyright -->
+      <p class="text-sm mt-3 md:mt-0">
+        © 2025 EduBot. All rights reserved.
+      </p>
+    </div>
+    <div>
+      <h3>Quick Links</h3>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Services</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Services</h3>
+      <ul>
+        <li><a href="#">Web Development</a></li>
+        <li><a href="#">UI/UX Design</a></li>
+        <li><a href="#">Digital Marketing</a></li>
+        <li><a href="#">SEO Optimization</a></li>
+      </ul>
+    </div>
+  </footer>
+
+</html>
